@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Warung Bakso</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <link href="./styles/style.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="#">Warung Bakso</a>
+            <div class="ms-auto d-flex align-items-center">
+                <span class="text-light me-3" id="usernameDisplay"></span>
+                <button class="btn btn-light" id="logoutBtn">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Konten Dashboard -->
+    <div class="container mt-4">
+        <ul class="nav nav-tabs" id="myTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="rekap-tab" data-bs-toggle="tab" data-bs-target="#rekap" type="button">Rekap Bahan</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="data-tab" data-bs-toggle="tab" data-bs-target="#data" type="button">Data Lengkap</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tambah-tab" data-bs-toggle="tab" data-bs-target="#tambah" type="button">Tambah Bahan</button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="myTabContent">
+            <!-- Tab Rekap -->
+            <div class="tab-pane fade show active" id="rekap" role="tabpanel">
+                <h3 class="mt-3">Rekap Bahan Baku</h3>
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Kode Bahan</th>
+                                <th>Nama Bahan</th>
+                                <th>Harga Terendah</th>
+                                <th>Terakhir Update</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rekapTableBody">
+                            <tr>
+                                <td colspan="5" class="text-center">Memuat data...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tab Data Lengkap -->
+            <div class="tab-pane fade" id="data" role="tabpanel">
+                <h3 class="mt-3">Data Lengkap Bahan Baku</h3>
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>No</th>
+                                <th>Tanggal Input</th>
+                                <th>Kode Bahan</th>
+                                <th>Nama Bahan</th>
+                                <th>Merek</th>
+                                <th>Harga</th>
+                                <th>Supplier</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dataTableBody">
+                            <tr>
+                                <td colspan="8" class="text-center">Memuat data...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tab Tambah Data -->
+            <div class="tab-pane fade" id="tambah" role="tabpanel">
+                <h3 class="mt-3">Tambah Bahan Baku</h3>
+                <form id="tambahBahanForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="kodeBahan" class="form-label">Kode Bahan</label>
+                                <input type="text" class="form-control" id="kodeBahan" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="namaBahan" class="form-label">Nama Bahan</label>
+                                <input type="text" class="form-control" id="namaBahan" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="deskripsi" class="form-label">Deskripsi</label>
+                                <textarea class="form-control" id="deskripsi" rows="3"></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label for="merek" class="form-label">Merek</label>
+                                <input type="text" class="form-control" id="merek">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="harga" class="form-label">Harga</label>
+                                <input type="number" class="form-control" id="harga" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="supplier" class="form-label">Supplier</label>
+                                <input type="text" class="form-control" id="supplier">
+                            </div>
+                            <div class="mb-3">
+                                <label for="foto" class="form-label">Foto</label>
+                                <input type="file" class="form-control" id="foto" accept="image/*">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Lokasi</label>
+                                <div id="map" style="height: 200px;"></div>
+                                <button type="button" class="btn btn-sm btn-secondary mt-2" id="getLocationBtn">
+                                    Ambil Lokasi Sekarang
+                                </button>
+                                <input type="hidden" id="latitude">
+                                <input type="hidden" id="longitude">
+                            </div>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Simpan</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Detail -->
+    <div class="modal fade" id="detailModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="detailModalTitle">Detail Bahan</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <img id="detailFoto" src="" class="img-fluid mb-3" style="max-height: 200px; display: none;">
+                            <table class="table">
+                                <tr>
+                                    <th>Kode Bahan</th>
+                                    <td id="detailKode"></td>
+                                </tr>
+                                <tr>
+                                    <th>Nama Bahan</th>
+                                    <td id="detailNama"></td>
+                                </tr>
+                                <tr>
+                                    <th>Merek</th>
+                                    <td id="detailMerek"></td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table">
+                                <tr>
+                                    <th>Deskripsi</th>
+                                    <td id="detailDeskripsi"></td>
+                                </tr>
+                                <tr>
+                                    <th>Harga</th>
+                                    <td id="detailHarga"></td>
+                                </tr>
+                                <tr>
+                                    <th>Supplier</th>
+                                    <td id="detailSupplier"></td>
+                                </tr>
+                                <tr>
+                                    <th>Lokasi Supplier</th>
+                                    <td>
+                                        <div id="detailMap" style="height: 200px;"></div>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script type="module" src="./scripts/main.js"></script>
+</body>
+</html>
