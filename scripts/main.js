@@ -68,46 +68,85 @@ function initMap() {
 
 // Memuat data rekap
 async function loadRekapData() {
+    // 1. Dapatkan elemen tabel dan tampilkan loading
     const rekapTableBody = document.getElementById('rekapTableBody');
     rekapTableBody.innerHTML = '<tr><td colspan="5" class="text-center">Memuat data...</td></tr>';
-    
-    const data = await readData('rekap_harga');
-    
-    if (!data || data.length === 0) {
-        rekapTableBody.innerHTML = '<tr><td colspan="5" class="text-center">Tidak ada data</td></tr>';
-        return;
-    }
-    
-    const header = data[0];
-    const rows = data.slice(1);
-    
-    rekapTableBody.innerHTML = '';
-    
-    rows.forEach((row, index) => {
-        const tr = document.createElement('tr');
+
+    try {
+        // 2. Ambil data dari Google Sheets
+        const data = await readData('rekap_harga');
         
-        tr.innerHTML = `
-            <td>${row[0] || '-'}</td>
-            <td>${row[1] || '-'}</td>
-            <td>${formatRupiah(row[2]) || '-'}</td>
-            <td>${formatDate(row[3]) || '-'}</td>
-            <td>
-                <button class="btn btn-sm btn-info btn-detail-rekap" data-kode="${row[0]}">Detail</button>
-                <button class="btn btn-sm btn-warning btn-filter" data-kode="${row[0]}">Filter</button>
-            </td>
+        // 3. Handle jika data kosong
+        if (!data || data.length === 0) {
+            rekapTableBody.innerHTML = '<tr><td colspan="5" class="text-center">Tidak ada data rekap</td></tr>';
+            return;
+        }
+
+        // 4. Pisahkan header dan baris data
+        const header = data[0]; // Baris pertama sebagai header
+        const rows = data.slice(1); // Baris berikutnya sebagai data
+        
+        // 5. Kosongkan tabel sebelum mengisi ulang
+        rekapTableBody.innerHTML = '';
+        
+        // 6. Loop melalui setiap baris data
+        rows.forEach((row) => {
+            const tr = document.createElement('tr');
+            
+            // 7. Isi konten tabel
+            tr.innerHTML = `
+                <td>${row[0] || '-'}</td> <!-- Kode Bahan -->
+                <td>${row[1] || '-'}</td> <!-- Nama Bahan -->
+                <td>${formatRupiah(row[2]) || '-'}</td> <!-- Harga Terendah -->
+                <td>${formatDate(row[3]) || '-'}</td> <!-- Tanggal Update -->
+                <td>
+                    <button class="btn btn-sm btn-info btn-detail-rekap" data-kode="${row[0]}">
+                        Detail
+                    </button>
+                    <button class="btn btn-sm btn-warning btn-filter" data-kode="${row[0]}">
+                        Filter
+                    </button>
+                </td>
+            `;
+            
+            // 8. Tambahkan baris ke tabel
+            rekapTableBody.appendChild(tr);
+        });
+
+        // 9. Tambahkan event listener untuk tombol detail
+        document.querySelectorAll('.btn-detail-rekap').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const kodeBahan = btn.getAttribute('data-kode');
+                showDetailByKode(kodeBahan);
+            });
+        });
+        
+        // 10. Tambahkan event listener untuk tombol filter
+        document.querySelectorAll('.btn-filter').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const kodeBahan = btn.getAttribute('data-kode');
+                filterByKode(kodeBahan);
+            });
+        });
+
+    } catch (error) {
+        // 11. Handle error dengan tampilan user-friendly
+        rekapTableBody.innerHTML = `
+            <tr>
+                <td colspan="5" class="text-center text-danger">
+                    Gagal memuat data rekap!<br>
+                    <small>${error.message || 'Cek koneksi internet dan konfigurasi API'}</small>
+                </td>
+            </tr>
         `;
         
-        rekapTableBody.appendChild(tr);
-    });
-    
-    // Tambahkan event listener
-    document.querySelectorAll('.btn-detail-rekap').forEach(btn => {
-        btn.addEventListener('click', () => showDetailByKode(btn.getAttribute('data-kode')));
-    });
-    
-    document.querySelectorAll('.btn-filter').forEach(btn => {
-        btn.addEventListener('click', () => filterByKode(btn.getAttribute('data-kode')));
-    });
+        // 12. Log error untuk debugging
+        console.error("Error saat memuat data rekap:", {
+            error: error,
+            timestamp: new Date().toISOString(),
+            page: 'dashboard'
+        });
+    }
 }
 
 // Memuat data lengkap
