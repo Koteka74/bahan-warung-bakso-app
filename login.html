@@ -64,7 +64,6 @@
       const username = document.getElementById('username').value;
       const password = document.getElementById('password').value;
       
-      // Login sederhana (untuk production gunakan sistem auth yang lebih aman)
       if (username === 'admin' && password === 'admin123') {
         localStorage.setItem('loggedIn', 'true');
         window.location.href = 'index.html';
