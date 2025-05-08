@@ -172,7 +172,7 @@ function setupForm() {
       ];
 
       // Kirim ke Google Sheets
-      const response = await fetch(APP_SCRIPT_URL, {
+      const response = await fetch(https://script.google.com/macros/s/AKfycbyZicacTHTHHUQCbDn6KsATJL5Wyilc7I16hYN8nXXwcUstE5V1Hm8Cxtp36Kpo8rTMZw/exec, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
