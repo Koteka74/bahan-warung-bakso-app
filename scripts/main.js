@@ -68,85 +68,31 @@ function initMap() {
 
 // Memuat data rekap
 async function loadRekapData() {
-    // 1. Dapatkan elemen tabel dan tampilkan loading
-    const rekapTableBody = document.getElementById('rekapTableBody');
-    rekapTableBody.innerHTML = '<tr><td colspan="5" class="text-center">Memuat data...</td></tr>';
-
-    try {
-        // 2. Ambil data dari Google Sheets
-        const data = await readData('rekap_harga');
-        
-        // 3. Handle jika data kosong
-        if (!data || data.length === 0) {
-            rekapTableBody.innerHTML = '<tr><td colspan="5" class="text-center">Tidak ada data rekap</td></tr>';
-            return;
-        }
-
-        // 4. Pisahkan header dan baris data
-        const header = data[0]; // Baris pertama sebagai header
-        const rows = data.slice(1); // Baris berikutnya sebagai data
-        
-        // 5. Kosongkan tabel sebelum mengisi ulang
-        rekapTableBody.innerHTML = '';
-        
-        // 6. Loop melalui setiap baris data
-        rows.forEach((row) => {
-            const tr = document.createElement('tr');
-            
-            // 7. Isi konten tabel
-            tr.innerHTML = `
-                <td>${row[0] || '-'}</td> <!-- Kode Bahan -->
-                <td>${row[1] || '-'}</td> <!-- Nama Bahan -->
-                <td>${formatRupiah(row[2]) || '-'}</td> <!-- Harga Terendah -->
-                <td>${formatDate(row[3]) || '-'}</td> <!-- Tanggal Update -->
-                <td>
-                    <button class="btn btn-sm btn-info btn-detail-rekap" data-kode="${row[0]}">
-                        Detail
-                    </button>
-                    <button class="btn btn-sm btn-warning btn-filter" data-kode="${row[0]}">
-                        Filter
-                    </button>
-                </td>
-            `;
-            
-            // 8. Tambahkan baris ke tabel
-            rekapTableBody.appendChild(tr);
-        });
-
-        // 9. Tambahkan event listener untuk tombol detail
-        document.querySelectorAll('.btn-detail-rekap').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const kodeBahan = btn.getAttribute('data-kode');
-                showDetailByKode(kodeBahan);
-            });
-        });
-        
-        // 10. Tambahkan event listener untuk tombol filter
-        document.querySelectorAll('.btn-filter').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const kodeBahan = btn.getAttribute('data-kode');
-                filterByKode(kodeBahan);
-            });
-        });
-
-    } catch (error) {
-        // 11. Handle error dengan tampilan user-friendly
-        rekapTableBody.innerHTML = `
-            <tr>
-                <td colspan="5" class="text-center text-danger">
-                    Gagal memuat data rekap!<br>
-                    <small>${error.message || 'Cek koneksi internet dan konfigurasi API'}</small>
-                </td>
-            </tr>
-        `;
-        
-        // 12. Log error untuk debugging
-        console.error("Error saat memuat data rekap:", {
-            error: error,
-            timestamp: new Date().toISOString(),
-            page: 'dashboard'
-        });
+  try {
+    showLoading('#rekapTableBody');
+    const data = await fetchData('rekap_harga');
+    
+    if (!data || data.length <= 1) { // Periksa apakah ada data selain header
+      document.getElementById('rekapTableBody').innerHTML = `
+        <tr>
+          <td colspan="4" class="text-center py-4 text-muted">
+            <i class="fas fa-info-circle me-2"></i> Data rekap kosong
+          </td>
+        </tr>`;
+      return;
     }
+
+    // Render data (skip header dengan slice(1))
+    renderRekapTable(data.slice(1)); 
+  } catch (error) {
+    console.error("Error loading rekap:", error);
+    document.getElementById('rekapTableBody').innerHTML = `
+      <tr>
+        <td colspan="4" class="text-center py-4 text-danger">
+          <i class="fas fa-exclamation-triangle me-2"></i> Gagal memuat rekap
+        </td>
+      </tr>`;
+  }
 }
 
 // Memuat data lengkap
@@ -198,57 +144,65 @@ async function loadFullData() {
 
 // Setup form tambah data
 function setupForm() {
-    document.getElementById('tambahBahanForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        const kodeBahan = document.getElementById('kodeBahan').value;
-        const namaBahan = document.getElementById('namaBahan').value;
-        const deskripsi = document.getElementById('deskripsi').value;
-        const merek = document.getElementById('merek').value;
-        const harga = parseInt(document.getElementById('harga').value);
-        const supplier = document.getElementById('supplier').value;
-        const fotoFile = document.getElementById('foto').files[0];
-        const lat = parseFloat(document.getElementById('latitude').value) || currentLocation.lat;
-        const lng = parseFloat(document.getElementById('longitude').value) || currentLocation.lng;
-        
-        // Upload foto ke tempat penyimpanan (contoh: ImgBB)
-        let fotoUrl = '';
-        if (fotoFile) {
-            fotoUrl = await uploadImage(fotoFile);
-        }
-        
-        // Format data untuk disimpan
-        const newData = [
-            '', // No (auto increment)
-            new Date().toISOString(), // Tanggal Input
-            kodeBahan,
-            namaBahan,
-            deskripsi,
-            merek,
-            harga,
-            supplier,
-            fotoUrl,
-            lat,
-            lng
-        ];
-        
-        // Simpan ke Google Sheets
-        const success = await writeData('data_lengkap', newData);
-        
-        if (success) {
-            // Update rekap
-            await updateRekap(kodeBahan, namaBahan, harga);
-            
-            alert('Data berhasil disimpan!');
-            document.getElementById('tambahBahanForm').reset();
-            
-            // Reload data
-            await loadRekapData();
-            await loadFullData();
-        } else {
-            alert('Gagal menyimpan data');
-        }
-    });
+  const form = document.getElementById('tambahBahanForm');
+  
+  form.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    // Validasi input
+    if (!form.checkValidity()) {
+      form.classList.add('was-validated');
+      return;
+    }
+
+    try {
+      // Ambil nilai form
+      const newData = [
+        '', // No (auto increment)
+        new Date().toISOString(), // Tanggal Input
+        document.getElementById('kodeBahan').value,
+        document.getElementById('namaBahan').value,
+        document.getElementById('deskripsi').value,
+        document.getElementById('merek').value,
+        document.getElementById('harga').value,
+        document.getElementById('supplier').value,
+        '', // Foto URL (kosongkan jika tidak ada upload)
+        '', // Latitude
+        ''  // Longitude
+      ];
+
+      // Kirim ke Google Sheets
+      const response = await fetch(APP_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          sheet: 'data_lengkap',
+          data: newData 
+        })
+      });
+
+      if (response.ok) {
+        Swal.fire({
+          icon: 'success',
+          title: 'Sukses!',
+          text: 'Data berhasil disimpan',
+          confirmButtonColor: '#28a745'
+        });
+        form.reset();
+        form.classList.remove('was-validated');
+        loadFullData(); // Refresh tabel
+      } else {
+        throw new Error('Gagal menyimpan data');
+      }
+    } catch (error) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error!',
+        text: error.message,
+        confirmButtonColor: '#dc3545'
+      });
+    }
+  });
 }
 
 // Upload gambar ke ImgBB (contoh)
