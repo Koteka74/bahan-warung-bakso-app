@@ -415,6 +415,12 @@
         </tr>`;
       console.error(error);
     }
+
+    function switchTab(tabId) {
+      const tab = new bootstrap.Tab(document.getElementById(`${tabId}-tab`));
+      tab.show();
+    }
+    
   </script>
 </body>
 </html>
