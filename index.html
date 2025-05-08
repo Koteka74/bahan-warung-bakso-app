@@ -1,34 +1,420 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Warung Bakso - Login</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="./styles/style.css" rel="stylesheet">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Warung Bakso - Mobile</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <style>
+    :root {
+      --primary: #ff6b6b;
+      --secondary: #4ecdc4;
+    }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f8f9fa;
+    }
+    .navbar-brand {
+      font-weight: 700;
+      color: var(--primary) !important;
+    }
+    .btn-primary {
+      background-color: var(--primary);
+      border: none;
+    }
+    .card {
+      border-radius: 15px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .table-responsive {
+      max-height: 70vh;
+      overflow-y: auto;
+    }
+    @media (max-width: 576px) {
+      .btn-sm-block {
+        display: block;
+        width: 100%;
+        margin-bottom: 5px;
+      }
+    }
+  </style>
 </head>
 <body>
-    <div class="login-container">
-        <div class="card">
-            <div class="card-header bg-primary text-white">
-                <h3>Login Warung Bakso</h3>
-            </div>
-            <div class="card-body">
-                <form id="loginForm">
-                    <div class="mb-3">
-                        <label for="username" class="form-label">Username</label>
-                        <input type="text" class="form-control" id="username" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="password" class="form-label">Password</label>
-                        <input type="password" class="form-control" id="password" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary w-100">Login</button>
-                </form>
-            </div>
-        </div>
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top">
+    <div class="container">
+      <a class="navbar-brand" href="#">
+        <i class="fas fa-utensils me-2"></i>Warung Bakso
+      </a>
+      <button class="btn btn-light ms-auto" id="logoutBtn">
+        <i class="fas fa-sign-out-alt"></i>
+      </button>
     </div>
+  </nav>
 
-    <script src="./scripts/auth.js"></script>
+  <!-- Main Content -->
+  <div class="container mt-3 mb-5">
+    <ul class="nav nav-tabs" id="myTab" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="rekap-tab" data-bs-toggle="tab" data-bs-target="#rekap">
+          <i class="fas fa-chart-bar me-1"></i> Rekap
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="data-tab" data-bs-toggle="tab" data-bs-target="#data">
+          <i class="fas fa-list me-1"></i> Data
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tambah-tab" data-bs-toggle="tab" data-bs-target="#tambah">
+          <i class="fas fa-plus-circle me-1"></i> Tambah
+        </button>
+      </li>
+    </ul>
+
+    <div class="tab-content p-3 bg-white rounded-bottom shadow-sm">
+      <!-- Tab Rekap -->
+      <div class="tab-pane fade show active" id="rekap">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="mb-0">Rekap Harga Terendah</h5>
+          <button class="btn btn-sm btn-primary" id="refreshRekap">
+            <i class="fas fa-sync-alt"></i>
+          </button>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-hover">
+            <thead class="table-light">
+              <tr>
+                <th>Kode</th>
+                <th>Nama Bahan</th>
+                <th>Harga</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="rekapTableBody">
+              <tr>
+                <td colspan="4" class="text-center py-5">
+                  <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab Data -->
+      <div class="tab-pane fade" id="data">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="mb-0">Data Lengkap</h5>
+          <div>
+            <button class="btn btn-sm btn-primary me-1" id="refreshData">
+              <i class="fas fa-sync-alt"></i>
+            </button>
+            <input type="text" class="form-control form-control-sm d-inline-block w-auto" 
+                   id="searchData" placeholder="Cari...">
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-hover">
+            <thead class="table-light">
+              <tr>
+                <th>No</th>
+                <th>Tanggal</th>
+                <th>Kode</th>
+                <th>Nama Bahan</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="dataTableBody">
+              <!-- Data akan diisi oleh JavaScript -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab Tambah -->
+      <div class="tab-pane fade" id="tambah">
+        <h5 class="mb-3">Tambah Bahan Baku</h5>
+        <form id="tambahBahanForm">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <div class="form-floating mb-3">
+                <input type="text" class="form-control" id="kodeBahan" required>
+                <label for="kodeBahan">Kode Bahan</label>
+              </div>
+              <div class="form-floating mb-3">
+                <input type="text" class="form-control" id="namaBahan" required>
+                <label for="namaBahan">Nama Bahan</label>
+              </div>
+              <div class="mb-3">
+                <label for="deskripsi" class="form-label">Deskripsi</label>
+                <textarea class="form-control" id="deskripsi" rows="2"></textarea>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="form-floating mb-3">
+                <input type="text" class="form-control" id="merek">
+                <label for="merek">Merek</label>
+              </div>
+              <div class="form-floating mb-3">
+                <input type="number" class="form-control" id="harga" required>
+                <label for="harga">Harga</label>
+              </div>
+              <div class="form-floating mb-3">
+                <input type="text" class="form-control" id="supplier">
+                <label for="supplier">Supplier</label>
+              </div>
+            </div>
+          </div>
+          <div class="d-grid mt-2">
+            <button type="submit" class="btn btn-primary btn-lg">
+              <i class="fas fa-save me-2"></i> Simpan Data
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Detail -->
+  <div class="modal fade" id="detailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title" id="detailModalTitle">Detail Bahan</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row">
+            <div class="col-md-6">
+              <img id="detailFoto" src="" class="img-fluid rounded mb-3" style="max-height: 150px; display: none;">
+              <table class="table table-sm">
+                <tr>
+                  <th width="40%">Kode Bahan</th>
+                  <td id="detailKode">-</td>
+                </tr>
+                <tr>
+                  <th>Nama Bahan</th>
+                  <td id="detailNama">-</td>
+                </tr>
+                <tr>
+                  <th>Merek</th>
+                  <td id="detailMerek">-</td>
+                </tr>
+              </table>
+            </div>
+            <div class="col-md-6">
+              <table class="table table-sm">
+                <tr>
+                  <th width="40%">Harga</th>
+                  <td id="detailHarga">-</td>
+                </tr>
+                <tr>
+                  <th>Supplier</th>
+                  <td id="detailSupplier">-</td>
+                </tr>
+                <tr>
+                  <th>Deskripsi</th>
+                  <td id="detailDeskripsi">-</td>
+                </tr>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-1"></i> Tutup
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script>
+    // Konfigurasi Apps Script
+    const APP_SCRIPT_URL = 'URL_APPS_SCRIPT_ANDA'; // Ganti dengan URL deployment Anda
+    
+    // Fungsi utama
+    document.addEventListener('DOMContentLoaded', function() {
+      // Inisialisasi
+      initAuth();
+      loadRekapData();
+      loadFullData();
+      setupForm();
+      setupEventListeners();
+    });
+
+    // ====================== [FUNGSI UTAMA] ======================
+    async function loadRekapData() {
+      try {
+        showLoading('#rekapTableBody');
+        const data = await fetchData('rekap_harga');
+        
+        if (!data || data.length === 0) {
+          document.getElementById('rekapTableBody').innerHTML = `
+            <tr>
+              <td colspan="4" class="text-center py-4 text-muted">
+                <i class="fas fa-database me-2"></i> Tidak ada data rekap
+              </td>
+            </tr>`;
+          return;
+        }
+
+        renderRekapTable(data.slice(1)); // Skip header
+      } catch (error) {
+        showError('#rekapTableBody', error);
+      }
+    }
+
+    async function loadFullData() {
+      try {
+        showLoading('#dataTableBody');
+        const data = await fetchData('data_lengkap');
+        
+        if (!data || data.length === 0) {
+          document.getElementById('dataTableBody').innerHTML = `
+            <tr>
+              <td colspan="5" class="text-center py-4 text-muted">
+                <i class="fas fa-database me-2"></i> Tidak ada data
+              </td>
+            </tr>`;
+          return;
+        }
+
+        renderDataTable(data.slice(1)); // Skip header
+      } catch (error) {
+        showError('#dataTableBody', error);
+      }
+    }
+
+    // ====================== [FUNGSI BANTUAN] ======================
+    async function fetchData(sheetName) {
+      const response = await fetch(`${APP_SCRIPT_URL}?sheet=${sheetName}`);
+      return await response.json();
+    }
+
+    function renderRekapTable(data) {
+      const html = data.map(row => `
+        <tr>
+          <td>${row[0] || '-'}</td>
+          <td>${row[1] || '-'}</td>
+          <td>${formatRupiah(row[2]) || '-'}</td>
+          <td>
+            <button class="btn btn-sm btn-outline-primary btn-detail-rekap" data-kode="${row[0]}">
+              <i class="fas fa-eye"></i>
+            </button>
+          </td>
+        </tr>
+      `).join('');
+      
+      document.getElementById('rekapTableBody').innerHTML = html;
+      initDetailButtons();
+    }
+
+    function renderDataTable(data) {
+      const html = data.map((row, index) => `
+        <tr>
+          <td>${index + 1}</td>
+          <td>${formatDate(row[1]) || '-'}</td>
+          <td>${row[2] || '-'}</td>
+          <td>${row[3] || '-'}</td>
+          <td>
+            <button class="btn btn-sm btn-outline-info btn-detail" data-id="${index}">
+              <i class="fas fa-eye"></i>
+            </button>
+          </td>
+        </tr>
+      `).join('');
+      
+      document.getElementById('dataTableBody').innerHTML = html;
+      initDetailButtons();
+    }
+
+    function initDetailButtons() {
+      // Implementasi detail button
+      // ...
+    }
+
+    function setupForm() {
+      document.getElementById('tambahBahanForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        // Implementasi form submission
+        // ...
+      });
+    }
+
+    function initAuth() {
+      // Sistem login sederhana
+      if (!localStorage.getItem('loggedIn')) {
+        window.location.href = 'login.html';
+      }
+      
+      document.getElementById('logoutBtn').addEventListener('click', function() {
+        localStorage.removeItem('loggedIn');
+        window.location.href = 'login.html';
+      });
+    }
+
+    function setupEventListeners() {
+      document.getElementById('refreshRekap').addEventListener('click', loadRekapData);
+      document.getElementById('refreshData').addEventListener('click', loadFullData);
+      
+      // Live search
+      document.getElementById('searchData').addEventListener('input', function(e) {
+        const searchTerm = e.target.value.toLowerCase();
+        const rows = document.querySelectorAll('#dataTableBody tr');
+        
+        rows.forEach(row => {
+          const text = row.textContent.toLowerCase();
+          row.style.display = text.includes(searchTerm) ? '' : 'none';
+        });
+      });
+    }
+
+    // ====================== [HELPER FUNCTIONS] ======================
+    function formatRupiah(amount) {
+      if (!amount) return 'Rp 0';
+      return 'Rp ' + amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    }
+
+    function formatDate(dateString) {
+      if (!dateString) return '-';
+      const date = new Date(dateString);
+      return date.toLocaleDateString('id-ID', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+    }
+
+    function showLoading(selector) {
+      document.querySelector(selector).innerHTML = `
+        <tr>
+          <td colspan="4" class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+          </td>
+        </tr>`;
+    }
+
+    function showError(selector, error) {
+      document.querySelector(selector).innerHTML = `
+        <tr>
+          <td colspan="4" class="text-center py-4 text-danger">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            ${error.message || 'Gagal memuat data'}
+          </td>
+        </tr>`;
+      console.error(error);
+    }
+  </script>
 </body>
 </html>
