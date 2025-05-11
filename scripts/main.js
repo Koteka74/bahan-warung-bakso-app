@@ -1,3 +1,68 @@
+// ====================== MODIFIED CORS SOLUTION ======================
+const APP_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyZicacTHTHHUQCbDn6KsATJL5Wyilc7I16hYN8nXXwcUstE5V1Hm8Cxtp36Kpo8rTMZw/exec';
+
+// New fetchData function with CORS proxy fallback
+async function fetchData(sheetName) {
+  const targetUrl = `${APP_SCRIPT_URL}?sheet=${sheetName}`;
+  const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+  
+  try {
+    // Try direct fetch first
+    const directResponse = await fetch(targetUrl, { 
+      redirect: 'follow',
+      mode: 'no-cors'
+    });
+    if (directResponse.ok) return await directResponse.json();
+    
+    // If direct fails, try proxy
+    const proxyResponse = await fetch(proxyUrl, {
+      headers: { 
+        "X-Requested-With": "XMLHttpRequest" 
+      }
+    });
+    return await proxyResponse.json();
+  } catch (error) {
+    console.error("Fetch error:", error);
+    throw error;
+  }
+}
+
+// New postData function with CORS proxy fallback
+async function postData(sheetName, data) {
+  const targetUrl = APP_SCRIPT_URL;
+  const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+  const payload = { 
+    action: 'addData',
+    sheet: sheetName,
+    data: data 
+  };
+
+  try {
+    // Try direct fetch first
+    const directResponse = await fetch(targetUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      redirect: 'follow'
+    });
+    if (directResponse.ok) return await directResponse.json();
+    
+    // If direct fails, try proxy
+    const proxyResponse = await fetch(proxyUrl, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      body: JSON.stringify(payload)
+    });
+    return await proxyResponse.json();
+  } catch (error) {
+    console.error("POST error:", error);
+    throw error;
+  }
+}
+
 import { readData, writeData, updateRekap } from './sheets-api.js';
 
 // Inisialisasi
@@ -67,32 +132,114 @@ function initMap() {
 }
 
 // Memuat data rekap
+// Memuat data rekap - UPDATED TO USE NEW fetchData()
 async function loadRekapData() {
-  try {
-    showLoading('#rekapTableBody');
-    const data = await fetchData('rekap_harga');
-    
-    if (!data || data.length <= 1) { // Periksa apakah ada data selain header
-      document.getElementById('rekapTableBody').innerHTML = `
-        <tr>
-          <td colspan="4" class="text-center py-4 text-muted">
-            <i class="fas fa-info-circle me-2"></i> Data rekap kosong
-          </td>
-        </tr>`;
-      return;
-    }
+    const rekapTableBody = document.getElementById('rekapTableBody');
+    rekapTableBody.innerHTML = '<tr><td colspan="4" class="text-center">Memuat data...</td></tr>';
 
-    // Render data (skip header dengan slice(1))
-    renderRekapTable(data.slice(1)); 
-  } catch (error) {
-    console.error("Error loading rekap:", error);
-    document.getElementById('rekapTableBody').innerHTML = `
-      <tr>
-        <td colspan="4" class="text-center py-4 text-danger">
-          <i class="fas fa-exclamation-triangle me-2"></i> Gagal memuat rekap
-        </td>
-      </tr>`;
-  }
+    try {
+        const data = await fetchData('rekap_harga'); // Changed to use fetchData()
+        
+        if (!data || data.length === 0) {
+            rekapTableBody.innerHTML = '<tr><td colspan="4" class="text-center">Tidak ada data</td></tr>';
+            return;
+        }
+
+        const header = data[0];
+        const rows = data.slice(1);
+        
+        rekapTableBody.innerHTML = '';
+        
+        rows.forEach((row) => {
+            const tr = document.createElement('tr');
+            
+            tr.innerHTML = `
+                <td>${row[0] || '-'}</td>
+                <td>${row[1] || '-'}</td>
+                <td>${formatRupiah(row[2]) || '-'}</td>
+                <td>
+                    <button class="btn btn-sm btn-info btn-detail-rekap" data-kode="${row[0]}">Detail</button>
+                    <button class="btn btn-sm btn-warning btn-filter" data-kode="${row[0]}">Filter</button>
+                </td>
+            `;
+            
+            rekapTableBody.appendChild(tr);
+        });
+
+        // [Rest of your existing event listeners]
+    } catch (error) {
+        rekapTableBody.innerHTML = `
+            <tr>
+                <td colspan="4" class="text-center text-danger">
+                    Error: ${error.message}<br>
+                    <small>Pastikan koneksi internet stabil</small>
+                </td>
+            </tr>`;
+        console.error("Error details:", error);
+    }
+}
+
+
+// Setup form tambah data - UPDATED TO USE NEW postData()
+function setupForm() {
+    const form = document.getElementById('tambahBahanForm');
+    
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        if (!form.checkValidity()) {
+            form.classList.add('was-validated');
+            return;
+        }
+
+        const submitBtn = form.querySelector('button[type="submit"]');
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyimpan...';
+        submitBtn.disabled = true;
+
+        try {
+            const newData = [
+                '', // No (auto increment)
+                new Date().toISOString(),
+                document.getElementById('kodeBahan').value,
+                document.getElementById('namaBahan').value,
+                document.getElementById('deskripsi').value,
+                document.getElementById('merek').value,
+                document.getElementById('harga').value,
+                document.getElementById('supplier').value,
+                '', // Foto URL
+                document.getElementById('latitude').value || currentLocation.lat,
+                document.getElementById('longitude').value || currentLocation.lng
+            ];
+
+            // Changed to use postData()
+            const result = await postData('data_lengkap', newData);
+            
+            if (result.status === 'success') {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Berhasil!',
+                    text: 'Data berhasil disimpan',
+                    confirmButtonColor: '#28a745'
+                });
+                form.reset();
+                form.classList.remove('was-validated');
+                await loadFullData();
+                await loadRekapData();
+            } else {
+                throw new Error(result.message || 'Gagal menyimpan data');
+            }
+        } catch (error) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Gagal!',
+                text: error.message,
+                confirmButtonColor: '#dc3545'
+            });
+        } finally {
+            submitBtn.innerHTML = '<i class="fas fa-save"></i> Simpan Data';
+            submitBtn.disabled = false;
+        }
+    });
 }
 
 // Memuat data lengkap
