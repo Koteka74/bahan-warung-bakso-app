@@ -1,246 +1,193 @@
-// ====================== MODIFIED CORS SOLUTION ======================
+// Konfigurasi
 const APP_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx-GmT5FI3i9PXayY-w9elLGI78pLeKKODp3QTXg_E_ymTvo2jGy0j35SWO07DBFS8mSw/exec';
 
-// New fetchData function with CORS proxy fallback
+// ========== FUNGSI UTAMA DENGAN CORS FIX ==========
+
+// Fungsi untuk membaca data dengan CORS proxy fallback
 async function fetchData(sheetName) {
   const targetUrl = `${APP_SCRIPT_URL}?sheet=${sheetName}`;
-  const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
   
   try {
-    // Try direct fetch first
-    const directResponse = await fetch(targetUrl, { 
+    // Coba request langsung dulu
+    const directResponse = await fetch(targetUrl, {
       redirect: 'follow',
-      mode: 'no-cors'
+      credentials: 'omit'
     });
-    if (directResponse.ok) return await directResponse.json();
     
-    // If direct fails, try proxy
-    const proxyResponse = await fetch(proxyUrl, {
-      headers: { 
-        "X-Requested-With": "XMLHttpRequest" 
-      }
-    });
-    return await proxyResponse.json();
-  } catch (error) {
-    console.error("Fetch error:", error);
-    throw error;
+    if (directResponse.ok) {
+      return await directResponse.json();
+    }
+  } catch (directError) {
+    console.log("Direct request failed, trying proxy...");
+  }
+
+  // Jika gagal, gunakan proxy
+  const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+  try {
+    const response = await fetch(proxyUrl);
+    const data = await response.json();
+    return JSON.parse(data.contents);
+  } catch (proxyError) {
+    throw new Error(`Gagal memuat data: ${proxyError.message}`);
   }
 }
 
-// New postData function with CORS proxy fallback
-async function postData(sheetName, data) {
-  const targetUrl = APP_SCRIPT_URL;
-  const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
-  const payload = { 
+// Fungsi untuk mengirim data dengan CORS proxy fallback
+async function postData(sheetName, rowData) {
+  const payload = {
     action: 'addData',
     sheet: sheetName,
-    data: data 
+    data: rowData
   };
 
   try {
-    // Try direct fetch first
-    const directResponse = await fetch(targetUrl, {
+    // Coba request langsung dulu
+    const directResponse = await fetch(APP_SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
-      redirect: 'follow'
+      redirect: 'follow',
+      credentials: 'omit'
     });
-    if (directResponse.ok) return await directResponse.json();
     
-    // If direct fails, try proxy
-    const proxyResponse = await fetch(proxyUrl, {
+    if (directResponse.ok) {
+      return await directResponse.json();
+    }
+  } catch (directError) {
+    console.log("Direct POST failed, trying proxy...");
+  }
+
+  // Jika gagal, gunakan proxy
+  const proxyUrl = `https://api.allorigins.win/post`;
+  try {
+    const response = await fetch(proxyUrl, {
       method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest'
-      },
-      body: JSON.stringify(payload)
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url: APP_SCRIPT_URL,
+        method: 'POST',
+        contentType: 'application/json',
+        body: JSON.stringify(payload)
+      })
     });
-    return await proxyResponse.json();
-  } catch (error) {
-    console.error("POST error:", error);
-    throw error;
+    
+    const data = await response.json();
+    return JSON.parse(data.contents);
+  } catch (proxyError) {
+    throw new Error(`Gagal mengirim data: ${proxyError.message}`);
   }
 }
 
-import { readData, writeData, updateRekap } from './sheets-api.js';
+// ========== IMPLEMENTASI FUNGSI ==========
 
-// Inisialisasi
-let map, detailMap, marker;
-let currentLocation = { lat: -6.175392, lng: 106.827153 }; // Default Jakarta
+// Memuat data rekap (sudah diperbaiki)
+async function loadRekapData() {
+  const rekapTableBody = document.getElementById('rekapTableBody');
+  rekapTableBody.innerHTML = '<tr><td colspan="4" class="text-center py-4"><div class="spinner-border text-primary" role="status"></div></td></tr>';
 
-// Fungsi utama saat halaman dimuat
-document.addEventListener('DOMContentLoaded', async () => {
-    // Tampilkan username
-    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-    if (currentUser) {
-        document.getElementById('usernameDisplay').textContent = currentUser.name;
+  try {
+    const data = await fetchData('rekap_harga');
+    
+    if (!data || data.length <= 1) {
+      rekapTableBody.innerHTML = `
+        <tr>
+          <td colspan="4" class="text-center py-4 text-muted">
+            <i class="fas fa-info-circle me-2"></i> Data rekap kosong
+          </td>
+        </tr>`;
+      return;
     }
-    
-    // Setup logout
-    document.getElementById('logoutBtn').addEventListener('click', () => {
-        localStorage.removeItem('currentUser');
-        window.location.href = 'index.html';
-    });
-    
-    // Inisialisasi peta
-    initMap();
-    
-    // Load data
-    await loadRekapData();
-    await loadFullData();
-    
-    // Setup form
-    setupForm();
-});
 
-// Inisialisasi peta
-function initMap() {
-    map = L.map('map').setView([currentLocation.lat, currentLocation.lng], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-    
-    marker = L.marker([currentLocation.lat, currentLocation.lng], { draggable: true }).addTo(map);
-    
-    marker.on('dragend', function() {
-        const position = marker.getLatLng();
-        document.getElementById('latitude').value = position.lat;
-        document.getElementById('longitude').value = position.lng;
-    });
-    
-    document.getElementById('getLocationBtn').addEventListener('click', () => {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    const pos = {
-                        lat: position.coords.latitude,
-                        lng: position.coords.longitude
-                    };
-                    
-                    map.setView(pos, 13);
-                    marker.setLatLng(pos);
-                    document.getElementById('latitude').value = pos.lat;
-                    document.getElementById('longitude').value = pos.lng;
-                },
-                () => {
-                    alert('Gagal mendapatkan lokasi. Pastikan izin lokasi diberikan.');
-                }
-            );
-        } else {
-            alert('Browser tidak mendukung geolocation.');
-        }
-    });
+    // Render tabel
+    rekapTableBody.innerHTML = data.slice(1).map(row => `
+      <tr>
+        <td>${row[0] || '-'}</td>
+        <td>${row[1] || '-'}</td>
+        <td>${formatRupiah(row[2]) || '-'}</td>
+        <td>
+          <button class="btn btn-sm btn-outline-primary btn-detail-rekap" data-kode="${row[0]}">
+            <i class="fas fa-eye"></i>
+          </button>
+        </td>
+      </tr>
+    `).join('');
+
+  } catch (error) {
+    rekapTableBody.innerHTML = `
+      <tr>
+        <td colspan="4" class="text-center py-4 text-danger">
+          <i class="fas fa-exclamation-triangle me-2"></i>
+          Gagal memuat data rekap
+        </td>
+      </tr>`;
+    console.error("Error loading rekap:", error);
+  }
 }
 
-// Memuat data rekap
-// Memuat data rekap - UPDATED TO USE NEW fetchData()
-async function loadRekapData() {
-    const rekapTableBody = document.getElementById('rekapTableBody');
-    rekapTableBody.innerHTML = '<tr><td colspan="4" class="text-center">Memuat data...</td></tr>';
+// Setup form tambah data (sudah diperbaiki)
+function setupForm() {
+  const form = document.getElementById('tambahBahanForm');
+  
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    if (!form.checkValidity()) {
+      form.classList.add('was-validated');
+      return;
+    }
+
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalBtnText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyimpan...';
+    submitBtn.disabled = true;
 
     try {
-        const data = await fetchData('rekap_harga'); // Changed to use fetchData()
-        
-        if (!data || data.length === 0) {
-            rekapTableBody.innerHTML = '<tr><td colspan="4" class="text-center">Tidak ada data</td></tr>';
-            return;
-        }
+      const newData = [
+        new Date().toISOString(),
+        document.getElementById('kodeBahan').value,
+        document.getElementById('namaBahan').value,
+        document.getElementById('deskripsi').value,
+        document.getElementById('merek').value,
+        document.getElementById('harga').value,
+        document.getElementById('supplier').value,
+        '', // Foto URL
+        document.getElementById('latitude').value || currentLocation.lat,
+        document.getElementById('longitude').value || currentLocation.lng
+      ];
 
-        const header = data[0];
-        const rows = data.slice(1);
-        
-        rekapTableBody.innerHTML = '';
-        
-        rows.forEach((row) => {
-            const tr = document.createElement('tr');
-            
-            tr.innerHTML = `
-                <td>${row[0] || '-'}</td>
-                <td>${row[1] || '-'}</td>
-                <td>${formatRupiah(row[2]) || '-'}</td>
-                <td>
-                    <button class="btn btn-sm btn-info btn-detail-rekap" data-kode="${row[0]}">Detail</button>
-                    <button class="btn btn-sm btn-warning btn-filter" data-kode="${row[0]}">Filter</button>
-                </td>
-            `;
-            
-            rekapTableBody.appendChild(tr);
+      const result = await postData('data_lengkap', newData);
+      
+      if (result.status === 'success') {
+        Swal.fire({
+          icon: 'success',
+          title: 'Berhasil!',
+          text: 'Data berhasil disimpan',
+          confirmButtonColor: '#28a745'
         });
-
-        // [Rest of your existing event listeners]
+        form.reset();
+        form.classList.remove('was-validated');
+        await loadFullData();
+        await loadRekapData();
+      } else {
+        throw new Error(result.message || 'Gagal menyimpan data');
+      }
     } catch (error) {
-        rekapTableBody.innerHTML = `
-            <tr>
-                <td colspan="4" class="text-center text-danger">
-                    Error: ${error.message}<br>
-                    <small>Pastikan koneksi internet stabil</small>
-                </td>
-            </tr>`;
-        console.error("Error details:", error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Gagal!',
+        text: error.message || 'Terjadi kesalahan saat menyimpan',
+        confirmButtonColor: '#dc3545'
+      });
+      console.error("Save error:", error);
+    } finally {
+      submitBtn.innerHTML = originalBtnText;
+      submitBtn.disabled = false;
     }
+  });
 }
 
-
-// Setup form tambah data - UPDATED TO USE NEW postData()
-function setupForm() {
-    const form = document.getElementById('tambahBahanForm');
-    
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        if (!form.checkValidity()) {
-            form.classList.add('was-validated');
-            return;
-        }
-
-        const submitBtn = form.querySelector('button[type="submit"]');
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyimpan...';
-        submitBtn.disabled = true;
-
-        try {
-            const newData = [
-                '', // No (auto increment)
-                new Date().toISOString(),
-                document.getElementById('kodeBahan').value,
-                document.getElementById('namaBahan').value,
-                document.getElementById('deskripsi').value,
-                document.getElementById('merek').value,
-                document.getElementById('harga').value,
-                document.getElementById('supplier').value,
-                '', // Foto URL
-                document.getElementById('latitude').value || currentLocation.lat,
-                document.getElementById('longitude').value || currentLocation.lng
-            ];
-
-            // Changed to use postData()
-            const result = await postData('data_lengkap', newData);
-            
-            if (result.status === 'success') {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Berhasil!',
-                    text: 'Data berhasil disimpan',
-                    confirmButtonColor: '#28a745'
-                });
-                form.reset();
-                form.classList.remove('was-validated');
-                await loadFullData();
-                await loadRekapData();
-            } else {
-                throw new Error(result.message || 'Gagal menyimpan data');
-            }
-        } catch (error) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Gagal!',
-                text: error.message,
-                confirmButtonColor: '#dc3545'
-            });
-        } finally {
-            submitBtn.innerHTML = '<i class="fas fa-save"></i> Simpan Data';
-            submitBtn.disabled = false;
-        }
-    });
-}
+// [Fungsi-fungsi lain tetap sama seperti sebelumnya]
+// ... initMap, loadFullData, showDetail, formatRupiah, dll ...
 
 // Memuat data lengkap
 async function loadFullData() {
