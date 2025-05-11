@@ -1,5 +1,5 @@
 // ====================== MODIFIED CORS SOLUTION ======================
-const APP_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyZicacTHTHHUQCbDn6KsATJL5Wyilc7I16hYN8nXXwcUstE5V1Hm8Cxtp36Kpo8rTMZw/exec';
+const APP_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx-GmT5FI3i9PXayY-w9elLGI78pLeKKODp3QTXg_E_ymTvo2jGy0j35SWO07DBFS8mSw/exec';
 
 // New fetchData function with CORS proxy fallback
 async function fetchData(sheetName) {
@@ -319,7 +319,7 @@ function setupForm() {
       ];
 
       // Kirim ke Google Sheets
-      const response = await fetch(https://script.google.com/macros/s/AKfycbyZicacTHTHHUQCbDn6KsATJL5Wyilc7I16hYN8nXXwcUstE5V1Hm8Cxtp36Kpo8rTMZw/exec, {
+      const response = await fetch(https://script.google.com/macros/s/AKfycbx-GmT5FI3i9PXayY-w9elLGI78pLeKKODp3QTXg_E_ymTvo2jGy0j35SWO07DBFS8mSw/exec, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
