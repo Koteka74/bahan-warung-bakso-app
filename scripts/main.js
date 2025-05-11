@@ -1,5 +1,5 @@
 // Konfigurasi
-const APP_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx-GmT5FI3i9PXayY-w9elLGI78pLeKKODp3QTXg_E_ymTvo2jGy0j35SWO07DBFS8mSw/exec';
+const APP_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyEgm4H9dJfHeuEtSin4G2jhrsbg_nh4fBuYPIaX7DEYAolbpMfFW37808iVnfPxPR8hg/exec';
 
 // ========== FUNGSI UTAMA DENGAN CORS FIX ==========
 
